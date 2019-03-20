@@ -31,8 +31,8 @@ from google.protobuf import json_format
 class Executor(base_executor.BaseExecutor):
   """Generic TFX pusher executor."""
 
-  def CheckBlessing(self, input_dict,
-                    output_dict):
+  def CheckBlessing(self, input_dict: Dict[Text, List[types.TfxType]],
+                    output_dict: Dict[Text, List[types.TfxType]]) -> bool:
     """Check that model is blessed by upstream ModelValidator, or update output.
 
     Args:
@@ -53,9 +53,9 @@ class Executor(base_executor.BaseExecutor):
       return False
     return True
 
-  def Do(self, input_dict,
-         output_dict,
-         exec_properties):
+  def Do(self, input_dict: Dict[Text, List[types.TfxType]],
+         output_dict: Dict[Text, List[types.TfxType]],
+         exec_properties: Dict[Text, Any]) -> None:
     """Push model to target if blessed.
 
     Args:

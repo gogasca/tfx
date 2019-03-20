@@ -39,3 +39,18 @@ python setup.py test
 Each change being worked on internally will have a pending PR, which will be
 automatically closed once internal change is submitted. You are welcome to
 checkout the PR branch to observe the behavior.
+
+## Python 2 and type hints
+All python source code on github includes
+[Python 3 type hints](https://docs.python.org/3.5/library/typing.html). Python
+3.5 (or above) is the recommended version to develop this project.
+
+The Python 2 version of [tfx](https://pypi.org/project/tfx/) pypi package has
+all type hints stripped and is the easiest way for python 2 users.
+
+If you must use python 2 with source code instead:
+
+* run `tfx/scripts/strip_type_hints.py` to strip all type hints in this repo:
+this requires you to install the
+[strip-hints](https://pypi.org/project/strip-hints/) PyPI package.
+
