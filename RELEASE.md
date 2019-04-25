@@ -5,6 +5,7 @@
 *   Supported pre-split input for ExampleGen components
 *   Added ImportExampleGen component for importing tfrecord files with
     TF Example data format
+*   Added Flink and Spark examples
 
 ## Bug fixes and other changes
 

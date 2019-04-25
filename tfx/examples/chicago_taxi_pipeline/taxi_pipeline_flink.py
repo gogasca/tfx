@@ -11,15 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Chicago Taxi example using TFX DSL on Kubeflow."""
+"""Chicago taxi example using TFX."""
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import datetime
+import logging
 import os
 from tfx.components.evaluator.component import Evaluator
-from tfx.components.example_gen.big_query_example_gen.component import BigQueryExampleGen
+from tfx.components.example_gen.csv_example_gen.component import CsvExampleGen
 from tfx.components.example_validator.component import ExampleValidator
 from tfx.components.model_validator.component import ModelValidator
 from tfx.components.pusher.component import Pusher
@@ -27,110 +29,83 @@ from tfx.components.schema_gen.component import SchemaGen
 from tfx.components.statistics_gen.component import StatisticsGen
 from tfx.components.trainer.component import Trainer
 from tfx.components.transform.component import Transform
-from tfx.orchestration.kubeflow.runner import KubeflowRunner
+from tfx.orchestration.airflow.airflow_runner import AirflowDAGRunner
 from tfx.orchestration.pipeline import PipelineDecorator
 from tfx.proto import evaluator_pb2
 from tfx.proto import pusher_pb2
 from tfx.proto import trainer_pb2
+from tfx.utils.dsl_utils import csv_input
 
-# Directory and data locations (uses Google Cloud Storage).
-_input_bucket = 'gs://my-bucket'
-_output_bucket = 'gs://my-bucket'
-_pipeline_root = os.path.join(_output_bucket, 'tfx')
-
-# Google Cloud Platform project id to use when deploying this pipeline.
-_project_id = 'my-gcp-project'
-
+# This example assumes that the taxi data is stored in ~/taxi/data and the
+# taxi utility function is in ~/taxi.  Feel free to customize this as needed.
+_taxi_root = os.path.join(os.environ['HOME'], 'taxi')
+_data_root = os.path.join(_taxi_root, 'data/simple')
 # Python module file to inject customized logic into the TFX components. The
 # Transform and Trainer both require user-defined functions to run successfully.
-# Copy this from the current directory to a GCS bucket and update the location
-# below.
-_taxi_utils = os.path.join(_input_bucket, 'taxi_utils.py')
-
+_taxi_module_file = os.path.join(_taxi_root, 'taxi_utils.py')
 # Path which can be listened to by the model server.  Pusher will output the
 # trained model here.
-_serving_model_dir = os.path.join(_output_bucket, 'serving_model/taxi_bigquery')
+_serving_model_dir = os.path.join(_taxi_root, 'serving_model/taxi_simple')
 
-# Region to use for Dataflow jobs and CMLE training.
-#   Dataflow: https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
-#   CMLE:     https://cloud.google.com/ml-engine/docs/tensorflow/regions
-_gcp_region = 'us-central1'
+# Directory and data locations.  This example assumes all of the chicago taxi
+# example code and metadata library is relative to $HOME, but you can store
+# these files anywhere on your local filesystem.
+_tfx_root = os.path.join(os.environ['HOME'], 'tfx')
+_pipeline_root = os.path.join(_tfx_root, 'pipelines')
+_metadata_db_root = os.path.join(_tfx_root, 'metadata')
+_log_root = os.path.join(_tfx_root, 'logs')
 
-# A dict which contains the training job parameters to be passed to Google
-# Cloud ML Engine. For the full set of parameters supported by Google Cloud ML
-# Engine, refer to
-# https://cloud.google.com/ml-engine/reference/rest/v1/projects.jobs#Job
-_cmle_training_args = {
-    'pythonModule': None,  # Will be populated by TFX
-    'args': None,  # Will be populated by TFX
-    'region': _gcp_region,
-    'jobDir': os.path.join(_output_bucket, 'tmp'),
-    'runtimeVersion': '1.12',
-    'pythonVersion': '2.7',
-    'project': _project_id,
+# Airflow-specific configs; these will be passed directly to airflow
+_airflow_config = {
+    'schedule_interval': None,
+    'start_date': datetime.datetime(2019, 1, 1),
 }
 
-# A dict which contains the serving job parameters to be passed to Google
-# Cloud ML Engine. For the full set of parameters supported by Google Cloud ML
-# Engine, refer to
-# https://cloud.google.com/ml-engine/reference/rest/v1/projects.models
-_cmle_serving_args = {
-    'model_name': 'chicago_taxi',
-    'project_id': _project_id,
-    'runtime_version': '1.12',
-}
-
-# The rate at which to sample rows from the Chicago Taxi dataset using BigQuery.
-# The full taxi dataset is > 120M record.  In the interest of resource
-# savings and time, we've set the default for this example to be much smaller.
-# Feel free to crank it up and process the full dataset!
-_query_sample_rate = 0.001  # Generate a 0.1% random sample.
+# Logging overrides
+logger_overrides = {'log_root': _log_root, 'log_level': logging.INFO}
 
 
-# TODO(zhitaoli): Remove PipelineDecorator after 0.13.0.
+# TODO(b/124066911): Centralize tfx related config into one place.
 @PipelineDecorator(
-    pipeline_name='chicago_taxi_pipeline_kubeflow',
-    log_root='/var/tmp/tfx/logs',
+    pipeline_name='chicago_taxi_flink',
+    enable_cache=True,
+    metadata_db_root=_metadata_db_root,
     pipeline_root=_pipeline_root,
     additional_pipeline_args={
+        'logger_args':
+            logger_overrides,
+        # LINT.IfChange
         'beam_pipeline_args': [
-            '--runner=DataflowRunner',
-            '--experiments=shuffle_mode=auto',
-            '--project=' + _project_id,
-            '--temp_location=' + os.path.join(_output_bucket, 'tmp'),
-            '--region=' + _gcp_region,
+            # ----- Beam Args -----.
+            '--runner=PortableRunner',
+            # Points to the job server started in setup_beam_on_flink.sh
+            '--job_endpoint=localhost:8099',
+            '--environment_type=LOOPBACK',
+            # TODO(BEAM-6754): Utilize multicore in LOOPBACK environment.  # pylint: disable=g-bad-todo
+            # TODO(BEAM-5167): Use concurrency information from SDK Harness.  # pylint: disable=g-bad-todo
+            # Note; We use 100 worker threads to mitigate the issue with
+            # scheduling work between Flink and Beam SdkHarness. Flink can
+            # process unlimited work items concurrently in a TaskManager while
+            # SdkHarness can only process 1 work item per worker thread. Having
+            # 100 threads will let 100 tasks execute concurrently avoiding
+            # scheduling issue in most cases. In case the threads are exhausted,
+            # beam print the relevant message in the log.
+            '--experiments=worker_threads=100',
+            # TODO(BEAM-7199): Obviate the need for setting pre_optimize=all.  # pylint: disable=g-bad-todo
+            '--experiments=pre_optimize=all',
+            # ----- Flink Args -----.
+            # TODO(b/126725506): Set the task parallelism based on cpu cores.
+            # TODO(FLINK-10672): Obviate setting BATCH_FORCED.
+            '--execution_mode_for_batch=BATCH_FORCED',
         ],
-        # Optional args:
-        # 'tfx_image': custom docker image to use for components.
+        # LINT.ThenChange(tfx/examples/chicago_taxi/setup_beam_on_flink.sh)
     })
 def _create_pipeline():
   """Implements the chicago taxi pipeline with TFX."""
-
-  query = """
-          SELECT
-            pickup_community_area,
-            fare,
-            EXTRACT(MONTH FROM trip_start_timestamp) AS trip_start_month,
-            EXTRACT(HOUR FROM trip_start_timestamp) AS trip_start_hour,
-            EXTRACT(DAYOFWEEK FROM trip_start_timestamp) AS trip_start_day,
-            UNIX_SECONDS(trip_start_timestamp) AS trip_start_timestamp,
-            pickup_latitude,
-            pickup_longitude,
-            dropoff_latitude,
-            dropoff_longitude,
-            trip_miles,
-            pickup_census_tract,
-            dropoff_census_tract,
-            payment_type,
-            company,
-            trip_seconds,
-            dropoff_community_area,
-            tips
-          FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips`
-          WHERE RAND() < {}""".format(_query_sample_rate)
+  examples = csv_input(_data_root)
 
   # Brings data into the pipeline or otherwise joins/converts training data.
-  example_gen = BigQueryExampleGen(query=query)
+  example_gen = CsvExampleGen(input_base=examples)
 
   # Computes statistics over data for visualization and example validation.
   statistics_gen = StatisticsGen(input_data=example_gen.outputs.examples)
@@ -146,17 +121,16 @@ def _create_pipeline():
   transform = Transform(
       input_data=example_gen.outputs.examples,
       schema=infer_schema.outputs.output,
-      module_file=_taxi_utils)
+      module_file=_taxi_module_file)
 
   # Uses user-provided Python function that implements a model using TF-Learn.
   trainer = Trainer(
-      module_file=_taxi_utils,
+      module_file=_taxi_module_file,
       transformed_examples=transform.outputs.transformed_examples,
       schema=infer_schema.outputs.output,
       transform_output=transform.outputs.transform_output,
       train_args=trainer_pb2.TrainArgs(num_steps=10000),
-      eval_args=trainer_pb2.EvalArgs(num_steps=5000),
-      custom_config={'cmle_training_args': _cmle_training_args})
+      eval_args=trainer_pb2.EvalArgs(num_steps=5000))
 
   # Uses TFMA to compute a evaluation statistics over features of a model.
   model_analyzer = Evaluator(
@@ -176,7 +150,6 @@ def _create_pipeline():
   pusher = Pusher(
       model_export=trainer.outputs.output,
       model_blessing=model_validator.outputs.blessing,
-      custom_config={'cmle_serving_args': _cmle_serving_args},
       push_destination=pusher_pb2.PushDestination(
           filesystem=pusher_pb2.PushDestination.Filesystem(
               base_directory=_serving_model_dir)))
@@ -187,4 +160,4 @@ def _create_pipeline():
   ]
 
 
-pipeline = KubeflowRunner().run(_create_pipeline())
+pipeline = AirflowDAGRunner(_airflow_config).run(_create_pipeline())

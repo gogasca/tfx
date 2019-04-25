@@ -22,42 +22,51 @@ if [ "${VIRTUAL_ENV:-unset}" == "unset" ]; then
   exit 1
 fi
 
-# TODO(kcweaver) Set BEAM_BRANCH in setup_beam.sh and move to release-2.13.0
-# when Beam 2.13 release is finalized.
-BEAM_BRANCH="release-2.11.0"
+# DO NOT SUBMIT
+# TODO(kcweaver) Use a release branch when one is available
+BEAM_BRANCH="master"
 
-FLINK_VERSION="1.5.6"
-FLINK_NAME="flink-$FLINK_VERSION"
-FLINK_BINARY="$FLINK_NAME-bin-scala_2.11.tgz"
-FLINK_DOWNLOAD_URL="http://archive.apache.org/dist/flink/flink-$FLINK_VERSION/$FLINK_BINARY"
+SPARK_VERSION="2.4.0"
+SPARK_NAME="spark-$SPARK_VERSION"
+SPARK_ROOT="$SPARK_NAME-bin-hadoop2.7"
+SPARK_BINARY="$SPARK_ROOT.tgz"
+SPARK_DOWNLOAD_URL="http://archive.apache.org/dist/spark/$SPARK_NAME/$SPARK_BINARY"
 
-function setup_flink() {
-  if [ ! -d $WORK_DIR/$FLINK_NAME ]; then
-    echo "SETUP FLINK at $WORK_DIR/$FLINK_NAME"
-    cd $WORK_DIR && curl $FLINK_DOWNLOAD_URL -o $WORK_DIR/$FLINK_BINARY  && tar -xvf $FLINK_BINARY
+SPARK_HOST=`hostname`
+SPARK_PORT=7077
+SPARK_MASTER_URL=spark://$SPARK_HOST:$SPARK_PORT
+
+function setup_spark() {
+  if [ ! -d $WORK_DIR/$SPARK_ROOT ]; then
+    echo "SETUP SPARK at $WORK_DIR/$SPARK_ROOT"
+    cd $WORK_DIR && curl $SPARK_DOWNLOAD_URL -o $WORK_DIR/$SPARK_BINARY  && tar -xvf $SPARK_BINARY
     if [ $? != 0 ]; then
-      echo "ERROR: Unable to download Flink from $FLINK_DOWNLOAD_URL." \
+      echo "ERROR: Unable to download Spark from $SPARK_DOWNLOAD_URL." \
             "Please make sure you have working internet and you have" \
             "curl(https://en.wikipedia.org/wiki/CURL) on your machine." \
-            "Alternatively, you can also manually download Flink archive"\
-            "and place it at $FLINK_DOWNLOAD_URL and extract Flink"\
-            "to $WORK_DIR/$FLINK_NAME"
+            "Alternatively, you can also manually download Spark archive"\
+            "and place it at $SPARK_DOWNLOAD_URL and extract Spark"\
+            "to $WORK_DIR/$SPARK_ROOT"
       exit 1
     fi
-    echo "FLINK SETUP DONE at $WORK_DIR/$FLINK_NAME"
+    echo "SPARK SETUP DONE at $WORK_DIR/$SPARK_ROOT"
   fi
 }
 
-function start_flink() {
-  echo "Starting flink at $WORK_DIR/$FLINK_NAME"
-  cd $WORK_DIR/$FLINK_NAME && ./bin/stop-cluster.sh && ./bin/start-cluster.sh
-  echo "Flink running from $WORK_DIR/$FLINK_NAME"
+function start_spark() {
+  echo "Starting Spark at $WORK_DIR/$SPARK_ROOT"
+  cd $WORK_DIR/$SPARK_ROOT
+  ./sbin/stop-all.sh
+  ./sbin/start-master.sh -h $SPARK_HOST -p $SPARK_PORT
+  ./sbin/start-slave.sh $SPARK_MASTER_URL
+  echo "Spark running from $WORK_DIR/$SPARK_ROOT"
 }
 
+
 function start_job_server() {
-  echo "Starting Beam Flink jobserver"
+  echo "Starting Beam Spark jobserver"
   cd $BEAM_DIR
-  ./gradlew beam-runners-flink_2.11-job-server:runShadow -PflinkMasterUrl=localhost:8081
+  ./gradlew beam-runners-spark-job-server:runShadow -PsparkMasterUrl=$SPARK_MASTER_URL
 }
 
 function main(){
@@ -70,8 +79,8 @@ function main(){
     echo "Please delete $WORK_DIR in case of issue."
     update_beam
   fi
-  setup_flink
-  start_flink
+  setup_spark
+  start_spark
   start_job_server
 }
 

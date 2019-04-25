@@ -52,7 +52,7 @@ class BaseComponentTest(tf.test.TestCase):
           pipeline_properties=self._pipeline_properties,
       )
 
-  def testContainerOpArguments(self):
+  def test_container_op_arguments(self):
     self.assertEqual(self.component.container_op.arguments[0],
                      '--exec_properties')
     self.assertDictEqual(
@@ -76,7 +76,7 @@ class BaseComponentTest(tf.test.TestCase):
         '0.3',
     ])
 
-  def testContainerOpOutputParameters(self):
+  def test_container_op_output_parameters(self):
     self.assertEqual(self.component.container_op.file_outputs,
                      {'output_name': '/output/ml_metadata/output_name'})
 
