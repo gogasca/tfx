@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2018 Google LLC
+# Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ gsutil ls $WORKING_DIR/serving_model_dir/export/chicago-taxi/
 MODEL_BINARIES=$(gsutil ls $WORKING_DIR/serving_model_dir/export/chicago-taxi/ \
   | sort | grep '\/[0-9]*\/$' | tail -n1)
 
-TF_VERSION=1.12
+TF_VERSION=1.13.1
 
 gcloud ml-engine versions create v1 \
   --model chicago_taxi \

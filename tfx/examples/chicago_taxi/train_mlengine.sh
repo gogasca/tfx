@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2018 Google LLC
+# Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -61,7 +61,7 @@ EVAL_FILE=$TFT_OUTPUT_PATH/train_transformed-*
 TRAIN_STEPS=100000
 EVAL_STEPS=1000
 
-TF_VERSION=1.12
+TF_VERSION=1.13.1
 
 gcloud ml-engine jobs submit training $JOB_ID \
                                     --stream-logs \
