@@ -55,7 +55,8 @@ class ExecutorTest(tf.test.TestCase):
 
     exec_properties = {}
 
-    example_validator_executor = executor.Executor()
+    context = executor.Executor.Context()
+    example_validator_executor = executor.Executor(context)
     example_validator_executor.Do(input_dict, output_dict, exec_properties)
     self.assertEqual(['anomalies.pbtxt'],
                      tf.gfile.ListDirectory(validation_output.uri))

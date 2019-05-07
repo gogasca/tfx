@@ -128,8 +128,11 @@ class ExecutorTest(tf.test.TestCase):
                     ])))
     }
 
+    # Create context
+    context = executor.Executor.Context()
+
     # Run executor.
-    big_query_example_gen = executor.Executor()
+    big_query_example_gen = executor.Executor(context)
     big_query_example_gen.Do({}, output_dict, exec_properties)
 
     # Check BigQuery example gen outputs.

@@ -64,8 +64,11 @@ class ExecutorTest(tf.test.TestCase):
                 ]))
     }
 
+    # Create context
+    context = executor.Executor.Context()
+
     # Run executor.
-    evaluator = executor.Executor()
+    evaluator = executor.Executor(context)
     evaluator.Do(input_dict, output_dict, exec_properties)
 
     # Check evaluator outputs.

@@ -97,9 +97,11 @@ class BaseExampleGenExecutorTest(tf.test.TestCase):
         'output':
             json_format.MessageToJson(example_gen_pb2.Output())
     }
+    # Create context
+    context = TestExampleGenExecutor.Context()
 
     # Run executor.
-    example_gen = TestExampleGenExecutor()
+    example_gen = TestExampleGenExecutor(context)
     example_gen.Do({}, self._output_dict, exec_properties)
 
     # Check example gen outputs.
@@ -130,8 +132,11 @@ class BaseExampleGenExecutorTest(tf.test.TestCase):
                     ])))
     }
 
+    # Create context
+    context = TestExampleGenExecutor.Context()
+
     # Run executor.
-    example_gen = TestExampleGenExecutor()
+    example_gen = TestExampleGenExecutor(context)
     example_gen.Do({}, self._output_dict, exec_properties)
 
     # Check example gen outputs.

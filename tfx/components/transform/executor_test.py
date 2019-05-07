@@ -70,8 +70,11 @@ class ExecutorTest(tf.test.TestCase):
     exec_properties = {
         'module_file': module_file,
     }
+    # Create context
+    context = executor.Executor.Context()
 
-    transform_executor = executor.Executor()
+    # Run executor
+    transform_executor = executor.Executor(context)
     transform_executor.Do(input_dict, output_dict, exec_properties)
     self.assertNotEqual(
         0, len(tf.gfile.ListDirectory(transformed_train_examples.uri)))

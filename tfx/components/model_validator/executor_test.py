@@ -55,6 +55,12 @@ class ExecutorTest(tf.test.TestCase):
         'results': [results],
     }
 
+    # Create context
+    self._uid = '2'
+    self._tmp_dir = os.path.join(output_data_dir, '.temp')
+    self._context = executor.Executor.Context(tmp_dir=self._tmp_dir,
+                                              unique_id=self._uid)
+
   def test_do_with_blessed_model(self):
     # Create exe properties.
     exec_properties = {
@@ -65,10 +71,12 @@ class ExecutorTest(tf.test.TestCase):
     }
 
     # Run executor.
-    model_validator = executor.Executor()
+    model_validator = executor.Executor(self._context)
     model_validator.Do(self._input_dict, self._output_dict, exec_properties)
 
     # Check model validator outputs.
+    self.assertTrue(
+        tf.gfile.Exists(os.path.join(self._tmp_dir)))
     self.assertTrue(
         tf.gfile.Exists(os.path.join(self._blessing.uri, 'BLESSED')))
 
@@ -80,10 +88,12 @@ class ExecutorTest(tf.test.TestCase):
     }
 
     # Run executor.
-    model_validator = executor.Executor()
+    model_validator = executor.Executor(self._context)
     model_validator.Do(self._input_dict, self._output_dict, exec_properties)
 
     # Check model validator outputs.
+    self.assertTrue(
+        tf.gfile.Exists(os.path.join(self._tmp_dir)))
     self.assertTrue(
         tf.gfile.Exists(os.path.join(self._blessing.uri, 'BLESSED')))
 

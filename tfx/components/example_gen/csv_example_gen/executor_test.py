@@ -84,9 +84,11 @@ class ExecutorTest(tf.test.TestCase):
                             name='eval', hash_buckets=1)
                     ])))
     }
+    # Create context
+    context = executor.Executor.Context()
 
     # Run executor.
-    csv_example_gen = executor.Executor()
+    csv_example_gen = executor.Executor(context)
     csv_example_gen.Do(self._input_dict, output_dict, exec_properties)
 
     # Check CSV example gen outputs.

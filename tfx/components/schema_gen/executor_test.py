@@ -48,8 +48,9 @@ class ExecutorTest(tf.test.TestCase):
     }
 
     exec_properties = {}
-
-    schema_gen_executor = executor.Executor()
+    # Create context
+    context = executor.Executor.Context()
+    schema_gen_executor = executor.Executor(context)
     schema_gen_executor.Do(input_dict, output_dict, exec_properties)
     self.assertNotEqual(0, len(tf.gfile.ListDirectory(schema_output.uri)))
 

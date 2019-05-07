@@ -73,8 +73,8 @@ class ExecutorTest(tf.test.TestCase):
         'warm_starting':
             False,
     }
-
-    trainer_executor = executor.Executor()
+    context = executor.Executor.Context()
+    trainer_executor = executor.Executor(context)
     trainer_executor.Do(
         input_dict=input_dict,
         output_dict=output_dict,

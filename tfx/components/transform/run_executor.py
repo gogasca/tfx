@@ -47,7 +47,9 @@ def _run_transform(args, beam_pipeline_args):
       labels.PER_SET_STATS_OUTPUT_PATHS_LABEL: (args.per_set_stats_outputs),
       labels.TEMP_OUTPUT_LABEL: args.tmp_location,
   }
-  executor = Executor(beam_pipeline_args)
+  executor = Executor(Executor.Context(beam_pipeline_args=beam_pipeline_args,
+                                       tmp_dir=args.temp_directory_path,
+                                       unique_id=args.unique_id))
   executor.Transform(inputs, outputs, args.status_file)
 
 
@@ -119,6 +121,14 @@ def main(argv):
       help='Paths to statistics output')
   parser.add_argument(
       '--status_file', type=str, default='', help='Path to write status')
+  parser.add_argument(
+      '--temp_directory_path',
+      type=str,
+      help='common temp directory path for executors')
+  parser.add_argument(
+      '--unique_id',
+      type=str,
+      help='unique id to distinguish every execution run')
   args, beam_args = parser.parse_known_args(argv)
   _run_transform(args, beam_args)
 

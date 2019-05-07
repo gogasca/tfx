@@ -59,7 +59,9 @@ class ExecutorTest(tf.test.TestCase):
                     filesystem=pusher_pb2.PushDestination.Filesystem(
                         base_directory=self._serving_model_dir))),
     }
-    self._executor = executor.Executor()
+    # Create context
+    context = executor.Executor.Context()
+    self._executor = executor.Executor(context)
 
   def test_do_blessed(self):
     self._model_blessing.uri = os.path.join(self._source_data_dir,

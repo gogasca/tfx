@@ -85,9 +85,10 @@ class ExecutorTest(tf.test.TestCase):
                             name='eval', hash_buckets=1)
                     ])))
     }
-
+    # create context
+    context = executor.Executor.Context()
     # Run executor.
-    import_example_gen = executor.Executor()
+    import_example_gen = executor.Executor(context)
     import_example_gen.Do(self._input_dict, output_dict, exec_properties)
 
     # Check import_example_gen outputs.

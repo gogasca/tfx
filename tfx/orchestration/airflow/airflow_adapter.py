@@ -142,9 +142,13 @@ class AirflowAdapter(object):
     # workers, this runs on the worker node not the controller node).
     task_instance = kwargs['ti']
     self._refresh_execution_args_from_xcom(task_instance, cache_task_name)
-    executor = self._executor_class(
+    executor_context = self._executor_class.Context(
         beam_pipeline_args=self._additional_pipeline_args.get(
-            'beam_pipeline_args'))
+            'beam_pipeline_args'),
+        tmp_dir=self._additional_pipeline_args.get('tmp_dir'),
+        unique_id=str(self._execution_id))
+
+    executor = self._executor_class(executor_context)
 
     # Run executor
     executor.Do(self._input_dict, self._output_dict, self._exec_properties)

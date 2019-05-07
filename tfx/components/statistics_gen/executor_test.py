@@ -62,9 +62,11 @@ class ExecutorTest(tf.test.TestCase):
     output_dict = {
         'output': [train_stats, eval_stats],
     }
+    # Create context
+    context = executor.Executor.Context()
 
     # Run executor.
-    evaluator = executor.Executor()
+    evaluator = executor.Executor(context)
     evaluator.Do(input_dict, output_dict, exec_properties={})
 
     # Check statistics_gen outputs.

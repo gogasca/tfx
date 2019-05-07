@@ -44,7 +44,9 @@ def _run_executor(args, pipeline_args):
       'Executor {} do: inputs: {}, outputs: {}, exec_properties: {}'.format(
           args.executor_class_path, inputs, outputs, exec_properties))
   executor_cls = import_utils.import_class_by_path(args.executor_class_path)
-  executor = executor_cls(beam_pipeline_args=pipeline_args)
+  executor = executor_cls(executor_cls.Context(beam_pipeline_args=pipeline_args,
+                                               tmp_dir=args.temp_directory_path,
+                                               unique_id=args.unique_id))
   tf.logging.info('Starting executor')
   executor.Do(inputs, outputs, exec_properties)
 
@@ -60,6 +62,14 @@ def main(argv):
       type=str,
       required=True,
       help='Python class of executor in format of <module>.<class>.')
+  parser.add_argument(
+      '--temp_directory_path',
+      type=str,
+      help='common temp directory path for executors')
+  parser.add_argument(
+      '--unique_id',
+      type=str,
+      help='unique id to distinguish every execution run')
   inputs_group = parser.add_mutually_exclusive_group(required=True)
   inputs_group.add_argument(
       '--inputs',
