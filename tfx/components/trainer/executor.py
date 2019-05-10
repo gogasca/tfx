@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Generic TFX trainer executor."""
+"""TFX local trainer executor."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -40,15 +40,39 @@ def _all_files_pattern(file_pattern):
 
 
 class Executor(base_executor.BaseExecutor):
-  """Executor for the official TFX Trainer component.
+  """Local trainer used by the TFX Trainer component.
+
+  The Trainer executor supplements Tensorflow training with a component to
+  enable warm-start training of any user-specified estimator. The Trainer is a
+  library built on top of TensorFlow that is expected to be integrated in a
+  custom user-specified binary.
+
+  To include Trainer in a tfx pipeline, configure your pipeline similar to
+  https://github.com/tensorflow/tfx/blob/master/tfx/examples/chicago_taxi_pipeline/taxi_pipeline_simple.py#L104.
+  For more details on the trainer component itself, please refer to
+  https://tensorflow.org/tfx/guide/trainer.  For a tutorial on TF Estimator,
+  please refer to https://www.tensorflow.org/extend/estimators.
+
+  How to create a trainer callback function to be used by this Trainer executor:
+  A TFX trainer binary can be created by first creating a trainer_fn callback
+  method that returns an estimator and some additional parameters, similar to
+  https://github.com/tensorflow/tfx/blob/master/tfx/examples/chicago_taxi_pipeline/taxi_utils.py#L285.
+  This executor will then train and evaluate this estimator using the
+  tf.estimator.train_and_evaluate API to train locally.
   """
 
+  # Name of subdirectory which contains checkpoints from prior runs
   _CHECKPOINT_FILE_NAME = 'checkpoint'
 
   def Do(self, input_dict,
          output_dict,
          exec_properties):
-    """Runs trainer job the given input.
+    """Uses a user-supplied estimator to train a Tensorflow model locally.
+
+    The Trainer executor invokes a training_fn callback function provided by
+    the user via the module_file parameter.  With the estimator returned by this
+    function, the Trainer executor then builds a Tensorflow model using the
+    user-provided estimator.
 
     Args:
       input_dict: Input dict from input key to a list of Artifacts.
@@ -68,6 +92,9 @@ class Executor(base_executor.BaseExecutor):
           directory to find previous model to warm start on.
 
     Returns:
+      None
+
+    Raises:
       None
     """
     self._log_startup(input_dict, output_dict, exec_properties)
